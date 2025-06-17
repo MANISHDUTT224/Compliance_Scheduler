@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Moon, Sun, Bell, Mail, Calendar, Users, Shield, Database, Download, Upload, Save, RotateCcw } from 'lucide-react';
+import { Moon, Bell, Users, Shield, Database, Download, Upload, Save, RotateCcw } from 'lucide-react';
 import { useSettings } from '../hooks/useSettings';
 
 interface SettingsSectionProps {
@@ -69,18 +69,20 @@ export function SettingsView() {
   });
   const [showSaveMessage, setShowSaveMessage] = useState(false);
 
+  const showSuccessMessage = (message: string) => {
+    setShowSaveMessage(true);
+    setTimeout(() => setShowSaveMessage(false), 3000);
+  };
+
   const exportSettings = () => {
     try {
       const dataStr = JSON.stringify({ settings, userProfile }, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
       const exportFileDefaultName = `comply-settings-${new Date().toISOString().split('T')[0]}.json`;
-      
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
-      
       showSuccessMessage('Settings exported successfully!');
     } catch (error) {
       console.error('Export error:', error);
@@ -99,7 +101,6 @@ export function SettingsView() {
         reader.onload = (e) => {
           try {
             const importedData = JSON.parse(e.target?.result as string);
-            
             // Validate and update settings
             if (importedData.settings) {
               Object.keys(importedData.settings).forEach(key => {
@@ -108,12 +109,10 @@ export function SettingsView() {
                 }
               });
             }
-            
             // Update user profile if present
             if (importedData.userProfile) {
               setUserProfile(prev => ({ ...prev, ...importedData.userProfile }));
             }
-            
             showSuccessMessage('Settings imported successfully!');
           } catch (error) {
             console.error('Import error:', error);
@@ -127,9 +126,16 @@ export function SettingsView() {
   };
 
   const handleSaveChanges = () => {
-    // Settings are automatically saved via useSettings hook
-    // This is just for user feedback
-    showSuccessMessage('Settings saved successfully!');
+    try {
+      // Persist settings and user profile to localStorage
+      localStorage.setItem('appSettings', JSON.stringify(settings));
+      localStorage.setItem('userProfile', JSON.stringify(userProfile));
+
+      showSuccessMessage('Settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save settings.');
+    }
   };
 
   const handleResetSettings = () => {
@@ -137,11 +143,6 @@ export function SettingsView() {
       resetSettings();
       showSuccessMessage('Settings reset to default values!');
     }
-  };
-
-  const showSuccessMessage = (message: string) => {
-    setShowSaveMessage(true);
-    setTimeout(() => setShowSaveMessage(false), 3000);
   };
 
   const updateReminderDefault = (index: number, value: number) => {
@@ -185,221 +186,210 @@ export function SettingsView() {
         </div>
       )}
 
-      <div className="space-y-6">
-        {/* Appearance Settings */}
-        <SettingsSection
-          title="Appearance"
-          description="Customize the look and feel of your workspace"
-          icon={Moon}
-        >
-          <div className="space-y-4">
-            <ToggleSetting
-              label="Dark Mode"
-              description="Switch between light and dark themes"
-              enabled={settings.darkMode}
-              onChange={(enabled) => updateSetting('darkMode', enabled)}
-            />
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Default View</h4>
-              <select
-                value={settings.defaultView}
-                onChange={(e) => updateSetting('defaultView', e.target.value as any)}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="dashboard">Dashboard</option>
-                <option value="table">Table View</option>
-                <option value="calendar">Calendar View</option>
-              </select>
-            </div>
+      {/* Appearance Settings */}
+      <SettingsSection
+        title="Appearance"
+        description="Customize the look and feel of your workspace"
+        icon={Moon}
+      >
+        <div className="space-y-4">
+          <ToggleSetting
+            label="Dark Mode"
+            description="Switch between light and dark themes"
+            enabled={settings.darkMode}
+            onChange={(enabled) => updateSetting('darkMode', enabled)}
+          />
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Default View</h4>
+            <select
+              value={settings.defaultView}
+              onChange={(e) => updateSetting('defaultView', e.target.value as any)}
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="dashboard">Dashboard</option>
+              <option value="table">Table View</option>
+              <option value="calendar">Calendar View</option>
+            </select>
           </div>
-        </SettingsSection>
+        </div>
+      </SettingsSection>
 
-        {/* Notification Settings */}
-        <SettingsSection
-          title="Notifications"
-          description="Manage how and when you receive notifications"
-          icon={Bell}
-        >
-          <div className="space-y-4">
-            <ToggleSetting
-              label="Email Notifications"
-              description="Receive email notifications for task reminders and updates"
-              enabled={settings.emailNotifications}
-              onChange={(enabled) => updateSetting('emailNotifications', enabled)}
-            />
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Default Reminder Schedule</h4>
-                <button
-                  onClick={addReminderDefault}
-                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                >
-                  Add Reminder
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Set default reminder timing for new tasks (days before due date)
-              </p>
-              <div className="space-y-2">
-                {settings.reminderDefaults.map((days, index) => (
-                  <div key={index} className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg">
-                    <input
-                      type="number"
-                      value={days}
-                      onChange={(e) => updateReminderDefault(index, parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="1"
-                    />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">days before</span>
-                    {settings.reminderDefaults.length > 1 && (
-                      <button
-                        onClick={() => removeReminderDefault(index)}
-                        className="text-red-500 hover:text-red-700 text-sm ml-auto"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </SettingsSection>
-
-        {/* Account Settings */}
-        <SettingsSection
-          title="Account"
-          description="Manage your account information and preferences"
-          icon={Users}
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Display Name
-              </label>
-              <input
-                type="text"
-                value={userProfile.name}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={userProfile.email}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Role
-              </label>
-              <select
-                value={userProfile.role}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, role: e.target.value }))}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="admin">Administrator</option>
-                <option value="manager">Compliance Manager</option>
-                <option value="member">Team Member</option>
-              </select>
-            </div>
-          </div>
-        </SettingsSection>
-
-        {/* Data Management */}
-        <SettingsSection
-          title="Data Management"
-          description="Import, export, and manage your compliance data"
-          icon={Database}
-        >
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+      {/* Notification Settings */}
+      <SettingsSection
+        title="Notifications"
+        description="Manage how and when you receive notifications"
+        icon={Bell}
+      >
+        <div className="space-y-4">
+          <ToggleSetting
+            label="Email Notifications"
+            description="Receive email notifications for task reminders and updates"
+            enabled={settings.emailNotifications}
+            onChange={(enabled) => updateSetting('emailNotifications', enabled)}
+          />
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Default Reminder Schedule</h4>
               <button
-                onClick={exportSettings}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={addReminderDefault}
+                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export Settings
-              </button>
-              
-              <button
-                onClick={importSettings}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import Settings
-              </button>
-
-              <button
-                onClick={handleResetSettings}
-                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset to Default
+                Add Reminder
               </button>
             </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Data Retention</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Automatically archive completed tasks after a specified period
-              </p>
-              <select
-                defaultValue="never"
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="never">Never archive</option>
-                <option value="30">30 days</option>
-                <option value="90">90 days</option>
-                <option value="180">6 months</option>
-                <option value="365">1 year</option>
-              </select>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Set default reminder timing for new tasks (days before due date)
+            </p>
+            <div className="space-y-2">
+              {settings.reminderDefaults.map((days, index) => (
+                <div key={index} className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg">
+                  <input
+                    type="number"
+                    value={days}
+                    onChange={(e) => updateReminderDefault(index, parseInt(e.target.value) || 1)}
+                    className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    min="1"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">days before</span>
+                  {settings.reminderDefaults.length > 1 && (
+                    <button
+                      onClick={() => removeReminderDefault(index)}
+                      className="text-red-500 hover:text-red-700 text-sm ml-auto"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-        </SettingsSection>
+        </div>
+      </SettingsSection>
 
-        {/* Security Settings */}
-        <SettingsSection
-          title="Security"
-          description="Manage security and privacy settings"
-          icon={Shield}
-        >
-          <div className="space-y-4">
-            <ToggleSetting
-              label="Two-Factor Authentication"
-              description="Add an extra layer of security to your account"
-              enabled={false}
-              onChange={() => alert('Two-factor authentication setup would be implemented here')}
+      {/* Account Settings */}
+      <SettingsSection
+        title="Account"
+        description="Manage your account information and preferences"
+        icon={Users}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Display Name
+            </label>
+            <input
+              type="text"
+              value={userProfile.name}
+              onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             />
-            
-            <ToggleSetting
-              label="Session Timeout"
-              description="Automatically log out after period of inactivity"
-              enabled={true}
-              onChange={() => alert('Session timeout settings would be configured here')}
-            />
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <button 
-                onClick={() => alert('Password change functionality would be implemented here')}
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                Change Password
-              </button>
-            </div>
           </div>
-        </SettingsSection>
-      </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={userProfile.email}
+              onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Role
+            </label>
+            <select
+              value={userProfile.role}
+              onChange={(e) => setUserProfile(prev => ({ ...prev, role: e.target.value }))}
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="admin">Administrator</option>
+              <option value="manager">Compliance Manager</option>
+              <option value="member">Team Member</option>
+            </select>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Data Management */}
+      <SettingsSection
+        title="Data Management"
+        description="Import, export, and manage your compliance data"
+        icon={Database}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={exportSettings}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Settings
+            </button>
+            <button
+              onClick={importSettings}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import Settings
+            </button>
+            <button
+              onClick={handleResetSettings}
+              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset to Default
+            </button>
+          </div>
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Data Retention</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Automatically archive completed tasks after a specified period
+            </p>
+            <select
+              defaultValue="never"
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="never">Never archive</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="180">6 months</option>
+              <option value="365">1 year</option>
+            </select>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Security Settings */}
+      <SettingsSection
+        title="Security"
+        description="Manage security and privacy settings"
+        icon={Shield}
+      >
+        <div className="space-y-4">
+          <ToggleSetting
+            label="Two-Factor Authentication"
+            description="Add an extra layer of security to your account"
+            enabled={false}
+            onChange={() => alert('Two-factor authentication setup would be implemented here')}
+          />
+          <ToggleSetting
+            label="Session Timeout"
+            description="Automatically log out after period of inactivity"
+            enabled={true}
+            onChange={() => alert('Session timeout settings would be configured here')}
+          />
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <button 
+              onClick={() => alert('Password change functionality would be implemented here')}
+              className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              Change Password
+            </button>
+          </div>
+        </div>
+      </SettingsSection>
 
       {/* Save Button */}
       <div className="flex justify-end space-x-4">
